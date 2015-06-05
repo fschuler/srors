@@ -1,11 +1,23 @@
+#![allow(dead_code)]
+
+
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Cursor;
+use std::num::Wrapping;
+use std::mem;
 
 pub struct Blowfish {
 	parray : [u32; 18],
 	sboxes : [[u32; 256]; 4]
 }
 
+
+pub fn get_output_length(length : usize) -> usize {
+	if length % 8 == 0 {
+		return length;
+	}
+	return length + (8 - (length % 8));
+}
 
 impl Blowfish {
 	pub fn new() -> Blowfish {
@@ -21,18 +33,22 @@ impl Blowfish {
 		}
 		
 		let mut tmp = x;
-		tmp >>= (24 - (8 * i));
+		tmp >>= 24 - (8 * i);
 		tmp &= 0xff;
 
 		return self.sboxes[i as usize][tmp as usize];
 	}
 
 	fn bf_f(&self, x : u32) -> u32 {
-		return (((self.s(x,0) + self.s(x, 1)) ^ self.s(x, 2)) + self.s(x, 3));
+		let step1 = Wrapping(self.s(x,0)) + Wrapping(self.s(x, 1));
+		let step2 = step1 ^ Wrapping(self.s(x, 2));
+		let step25 = Wrapping(self.s(x, 3));
+		let step3 = step2 + step25;
+		return step3.0;
 	}
 
 	fn round(&self, a : &mut u32, b : u32, n : i32) {
-		*a ^= (self.bf_f(b) ^ self.parray[n as usize]);
+		*a ^= self.bf_f(b) ^ self.parray[n as usize];
 	}
 
 	fn blowfish_encipher(&self, xl : &mut u32, xr : &mut u32) {
@@ -88,8 +104,58 @@ impl Blowfish {
 		*xl = tmp_xr;
 		*xr = tmp_xl;
 	}
+	
 
-	pub fn initialize(&mut self, key : &[u8], offset : usize, length : usize) {
+	pub fn encode(&mut self, stream : Vec<u8>) -> Vec<u8> {
+		let mut workspace = stream.clone();
+		let size = get_output_length(stream.len());
+		workspace.reserve(size - stream.len());
+		for _ in 0 .. (size - stream.len()) {
+			workspace.push(0);
+		}
+		let mut x = 0;
+		while x < workspace.len() {
+			let l_vec : [u8;4] = [workspace[x], workspace[x+1], workspace[x+2], workspace[x+3]];
+			let r_vec : [u8;4] = [workspace[x+4], workspace[x+5], workspace[x+6], workspace[x+7]];
+			unsafe {
+				let mut l = mem::transmute::<[u8;4],u32>(l_vec);
+				let mut r = mem::transmute::<[u8;4],u32>(r_vec);
+				self.blowfish_encipher(&mut l, &mut r);
+				let l_vec = mem::transmute::<u32,[u8;4]>(l);
+				let r_vec = mem::transmute::<u32,[u8;4]>(r);
+				workspace[x] = l_vec[0]; workspace[x + 1] = l_vec[1]; workspace[x + 2] = l_vec[2]; workspace[x + 3] = l_vec[3];
+				workspace[x + 4] = r_vec[0]; workspace[x + 5] = r_vec[1]; workspace[x + 6] = r_vec[2]; workspace[x + 7] = r_vec[3];
+			}
+			
+			x += 8;	
+		}
+		
+		return workspace;
+	}
+	
+	pub fn decode(&mut self, stream : Vec<u8>) -> Vec<u8> {
+		let mut workspace = stream.clone();
+		let mut x = 0;
+		while x < workspace.len() {
+			let l_vec : [u8;4] = [stream[x], stream[x+1], stream[x+2], stream[x+3]];
+			let r_vec : [u8;4] = [stream[x+4], stream[x+5], stream[x+6], stream[x+7]];
+			unsafe {
+				let mut l = mem::transmute::<[u8;4],u32>(l_vec);
+				let mut r = mem::transmute::<[u8;4],u32>(r_vec);
+				self.blowfish_decipher(&mut l, &mut r);
+				let l_vec = mem::transmute::<u32,[u8;4]>(l);
+				let r_vec = mem::transmute::<u32,[u8;4]>(r);
+				workspace[x] = l_vec[0]; workspace[x + 1] = l_vec[1]; workspace[x + 2] = l_vec[2]; workspace[x + 3] = l_vec[3];
+				workspace[x + 4] = r_vec[0]; workspace[x + 5] = r_vec[1]; workspace[x + 6] = r_vec[2]; workspace[x + 7] = r_vec[3];
+			}
+			
+			x += 8;	
+		}
+		return workspace;
+	}
+	
+
+	pub fn initialize(&mut self, key : &[u8;8]) {
 		for i in 0..18 {
 			self.parray[i] = BF_P[i];
 		}
@@ -103,18 +169,17 @@ impl Blowfish {
 		let mut temp : [u8;4] = [0;4];
 
 		let mut j : usize = 0;
-		let mut data : u32 = 0;
 		for i in 0..18 {
 			temp[3] = key[j as usize];
-			temp[2] = key[(j + 1) % length];
-			temp[1] = key[(j + 2) % length];
-			temp[0] = key[(j + 3) % length];
+			temp[2] = key[(j + 1) % key.len()];
+			temp[1] = key[(j + 2) % key.len()];
+			temp[0] = key[(j + 3) % key.len()];
 
 			let mut rdr = Cursor::new(temp.as_ref());
-			data = rdr.read_u32::<LittleEndian>().unwrap();
+			let data = rdr.read_u32::<LittleEndian>().unwrap();
 
 			self.parray[i] ^= data;
-			j = (j + 4) % length;
+			j = (j + 4) % key.len();
 		}
 
 		let mut datal : u32 = 0;

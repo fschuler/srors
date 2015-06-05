@@ -1,38 +1,51 @@
+#![allow(dead_code)]
+
+
 use std::io::prelude::*;
-use std::net::TcpStream;
+use std::net::{TcpStream};
 use std::io::{Result, Error, ErrorKind};
 
 pub struct Connection {
-	hostname : &'static str,
-	port : u16,
 	stream : Option<TcpStream>,
 }
 
 impl Connection {
-	pub fn new(host: &'static str, prt : u16) -> Connection {
-		Connection {
-			hostname : host,
-			port : prt,
+	pub fn new(host: String, prt : u16) -> Result<Connection> {
+		let mut con = Connection {
 			stream : None
-		}
+		};
+		let stream = try!(TcpStream::connect((&*host, prt)));
+		con.stream = Some(stream);
+		Ok(con)
 	}
 
-	pub fn connect(&mut self) -> Result<()> {
-		//Create connection
-		let stream = try!(TcpStream::connect((self.hostname, self.port)));
-		self.stream = Some(stream);
-		Ok(())
-	}
 
-	pub fn begin_receive(&mut self) -> Result<()> {
+	pub fn receive(&mut self) -> Result<Vec<u8>> {
 		match self.stream.as_mut() {
 			Some(ref mut stream) =>  {
 				//Start reading
 				let mut buff : [u8; 128] = [0; 128];
-
 				let size = try!(stream.read(&mut buff));
-				println!("{:?}",buff[0..size].as_ref());
-				return Ok(())
+				if size == 0 {
+					return Err(Error::new(ErrorKind::Other, "Connection closed!"));
+				}
+				return Ok(buff[0..size].to_vec())
+			},
+			None => {
+				println!("Not connected.");
+				return Err(Error::new(ErrorKind::Other, "Not connected!"));
+			}
+		}
+	}
+	
+	pub fn send(&mut self, buffer : Vec<u8>) -> Result<()> {
+		match self.stream.as_mut() {
+			Some(ref mut stream) =>  {
+				let size = try!(stream.write(&buffer[..]));
+				if size != buffer.len() {
+					return Err(Error::new(ErrorKind::Other, "Did not write the entire buffer."));
+				}
+				return Ok(());
 			},
 			None => {
 				println!("Not connected.");

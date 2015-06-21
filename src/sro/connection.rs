@@ -7,12 +7,14 @@ use std::io::{Result, Error, ErrorKind};
 
 pub struct Connection {
 	stream : Option<TcpStream>,
+	pub closed : bool
 }
 
 impl Connection {
 	pub fn new(host: String, prt : u16) -> Result<Connection> {
 		let mut con = Connection {
-			stream : None
+			stream : None,
+			closed : false
 		};
 		let stream = try!(TcpStream::connect((&*host, prt)));
 		con.stream = Some(stream);
@@ -24,7 +26,7 @@ impl Connection {
 		match self.stream.as_mut() {
 			Some(ref mut stream) =>  {
 				//Start reading
-				let mut buff : [u8; 128] = [0; 128];
+				let mut buff : [u8; 4096] = [0; 4096];
 				let size = try!(stream.read(&mut buff));
 				if size == 0 {
 					return Err(Error::new(ErrorKind::Other, "Connection closed!"));

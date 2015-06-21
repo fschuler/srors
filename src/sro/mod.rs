@@ -5,3 +5,4 @@ pub mod packet;
 pub mod packetwriter;
 pub mod packetreader;
 pub mod gateway_session;
+pub mod opcodes;

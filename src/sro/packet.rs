@@ -49,7 +49,7 @@ impl Packet {
 	
 	pub fn new_enc_mass(opcode : u16, encrypted : bool, massive : bool) -> Packet {
 		Packet {
-			m_opcode : opcode,
+			m_opcode : opcode ,
 			m_massive : massive,
 			m_encrypted : encrypted,
 			m_locked : false,

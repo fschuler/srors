@@ -134,6 +134,9 @@ impl Blowfish {
 	}
 	
 	pub fn decode(&mut self, stream : Vec<u8>) -> Vec<u8> {
+		if stream.len() % 8 != 0 {
+			panic!("Invalid blowfish input size. must be %8");
+		}
 		let mut workspace = stream.clone();
 		let mut x = 0;
 		while x < workspace.len() {

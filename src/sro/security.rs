@@ -8,6 +8,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use sro::packet::Packet;
 use sro::blowfish::Blowfish;
+use sro::blowfish::get_output_length;
 use sro::packetreader::PacketReader;
 use sro::packetwriter::PacketWriter;
 
@@ -495,28 +496,39 @@ impl Security {
 		while working_buffer.len() > 0 {
 			let mut packet_encrypted = false;
 			let mut packet_size = (working_buffer[1] as u16) << 8 | working_buffer[0] as u16;
-			let tmp_working_buffer = working_buffer.clone();
-			let (packet_buff, remaining_buffer) = tmp_working_buffer.split_at( (packet_size + 6) as usize);
-			working_buffer = remaining_buffer.to_vec();
-			let mut packet_buffer = packet_buff.to_vec();
-		
+
 			if packet_size & 0x8000 > 0 {
 				if self.m_security_flags.blowfish == 1 {
 					packet_size &= 0x7fff;
+					packet_size = 2 + get_output_length((packet_size + 4) as usize) as u16;
 					packet_encrypted = true;
 				} else {
 					packet_size &= 0x7fff;
 				}
 			}
+			else {
+				packet_size += 6;
+			}
+			
+			
+			let tmp_working_buffer = working_buffer.clone();
+			
+			
+			
+			let (packet_buff, remaining_buffer) = tmp_working_buffer.split_at(packet_size as usize);
+			working_buffer = remaining_buffer.to_vec();
+			let mut packet_buffer = packet_buff.to_vec();
+		
+
 			
 			if packet_encrypted {
 				
 				let decrypted = self.m_blowfish.decode(packet_buff[2..].to_vec());
 				
 				
-				let mut new_buffer = Vec::<u8>::with_capacity((6 + packet_size) as usize);		
-				new_buffer[0] = packet_size as u8;
-				new_buffer[1] = (packet_size >> 8) as u8;
+				let mut new_buffer = Vec::<u8>::with_capacity(packet_size as usize);		
+				new_buffer.push((packet_size & 0xff) as u8);
+				new_buffer.push((packet_size >> 8) as u8);
 				
 				for b in decrypted {
 					new_buffer.push(b);

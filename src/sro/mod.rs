@@ -6,3 +6,5 @@ pub mod packetwriter;
 pub mod packetreader;
 pub mod gateway_session;
 pub mod opcodes;
+pub mod gameserver_session;
+pub mod agentserver_info;

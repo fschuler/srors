@@ -6,6 +6,7 @@ pub enum ClientOpcode {
 	PatchRequest = 0x6100u16,
 	ServerlistRequest = 0x6101u16,
 	LoginRequest = 0x6102u16,
+	AgentLoginRequest = 0x6103u16,
 	NoticeRequest = 0x6104u16,
 	LoginIBUVAwnser = 0x6323u16,
 	Unkown
@@ -48,6 +49,9 @@ if opcode == ClientOpcode::Identification as u16 {
 	}
 	if opcode == ClientOpcode::LoginIBUVAwnser as u16 {
 		return ClientOpcode::LoginIBUVAwnser
+	}
+	if opcode == ClientOpcode::AgentLoginRequest as u16 {
+		return ClientOpcode::AgentLoginRequest
 	}
 	ClientOpcode::Unkown
 }

@@ -9,6 +9,7 @@ use sro::opcodes::server_opcode;
 use sro::opcodes::ServerOpcode;
 use sro::opcodes::client_opcode;
 use sro::opcodes::ClientOpcode;
+use sro::agentserver_info::AgentServerInfo;
 
 pub struct GatewaySession {
 	security : Arc<Mutex<Security>>,
@@ -18,13 +19,7 @@ pub struct GatewaySession {
 	pub agentserver_info : Arc<Mutex<AgentServerInfo>>
 }
 
-pub struct AgentServerInfo {
-	pub username : String,
-	pub password : String,
-	pub session_token : u32,
-	pub ip : String,
-	pub port : u16
-}
+
 impl AgentServerInfo {
 	pub fn new() -> AgentServerInfo {
 		AgentServerInfo {
@@ -115,7 +110,7 @@ fn process_outgoing(sec : &mut MutexGuard<Security>, con : &mut MutexGuard<Conne
 fn process_packet(packet : &mut Packet, sec : &mut MutexGuard<Security>, info : &mut MutexGuard<AgentServerInfo>, con : &mut MutexGuard<Connection>) {
 	println!("{}", format!("[S->C] {:?}", server_opcode(packet.opcode())));		
 	match server_opcode(packet.opcode()) {
-		ServerOpcode::Handshake 			=> println!("{:?}",ServerOpcode::Handshake),
+		ServerOpcode::Handshake 			=> {},
 		ServerOpcode::Identification 		=> identify(sec),
     	ServerOpcode::PatchResponse 		=> request_serverlist(packet, sec),
 		ServerOpcode::ServerlistResponse 	=> login(serverlist(packet), sec, info),

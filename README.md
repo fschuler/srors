@@ -1,2 +1,2 @@
 # srors
-https://travis-ci.org/theonly112/srors.svg?branch=master
+<img src="https://travis-ci.org/theonly112/srors.svg?branch=master">
